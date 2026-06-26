@@ -432,22 +432,21 @@ function parseMd(text) {
 
 // 抖音/视频号解析
 function parseDouyinOrShipinhao(text) {
+  text = text.replace(/^---[\s\S]*?---\n?/, '');
   const sections = text.split(/^## /m).filter(s => s.trim());
   const cards = [];
   for (const sec of sections) {
-    const blocks = sec.split(/^### /m).filter(s => s.trim());
-    let title = '', subject = '', dataSummary = '', content = '';
-    const numMatch = sec.match(/^(\d+)\.\s+(.+)/);
-    if (numMatch) title = numMatch[2].trim();
-    for (const block of blocks) {
-      const subMatch = block.match(/\*\*【科目】\*\*[^\n]*?\n([^\n（()]+)/);
-      if (subMatch) subject = subMatch[1].replace(/[（(].*/,'').trim();
-      const dataMatch = block.match(/\*\*【爆款数据摘要】\*\*[^\n]*\n([\s\S]*?)(?=\n\*\*【|$)/);
-      if (dataMatch) dataSummary = dataMatch[1].trim();
-      const contentMatch = block.match(/\*\*【口播文案】\*\*[^\n]*\n([\s\S]*)/);
-      if (contentMatch) content = contentMatch[1].trim();
-    }
-    if (title && !title.startsWith('说明') && !title.startsWith('文档')) {
+    const numMatch = sec.match(/^(\d+)\.\s+(.+?)$/m);
+    if (!numMatch) continue;
+    const title = numMatch[2].trim();
+    if (title.startsWith('说明') || title.startsWith('文档')) continue;
+    const dataMatch = sec.match(/\*\*(?:原文|原视频)爆点[：:]\*\*\s*([^\n]+)/);
+    const dataSummary = dataMatch ? dataMatch[1].trim() : '';
+    const contentMatch = sec.match(/\*\*口播文案[：:]\*\*\s*\n([\s\S]*?)(?=\n---|\n## |$)/);
+    const content = contentMatch ? contentMatch[1].trim() : '';
+    const subMatch = sec.match(/\*\*科目[：:]\*\*\s*([^\n]+)/);
+    const subject = subMatch ? subMatch[1].replace(/[（(].*/, '').trim() : '';
+    if (title && content) {
       cards.push({ title, subject, dataSummary, content });
     }
   }
@@ -456,22 +455,23 @@ function parseDouyinOrShipinhao(text) {
 
 // 小红书解析
 function parseXiaohongshu(text) {
+  text = text.replace(/^---[\s\S]*?---\n?/, '');
   const sections = text.split(/^## /m).filter(s => s.trim());
   const cards = [];
   for (const sec of sections) {
-    let title = '', subject = '', dataSummary = '', content = '', tags = [];
-    const titleMatch = sec.match(/\*\*【原标题\/主题】\*\*[^\n]*\n([^\n]+)/);
+    const numMatch = sec.match(/^(\d+)\.\s+(.+?)$/m);
+    if (!numMatch) continue;
+    let title = numMatch[2].trim();
+    const dataMatch = sec.match(/\*\*(?:原笔记|原文)爆点[：:]\*\*\s*([^\n]+)/);
+    const dataSummary = dataMatch ? dataMatch[1].trim() : '';
+    const titleMatch = sec.match(/\*\*标题[：:]\*\*\s*([^\n]+)/);
     if (titleMatch) title = titleMatch[1].trim();
-    const rewriteMatch = sec.match(/\*\*【改写标题】\*\*[^\n]*\n([^\n]+)/);
-    if (rewriteMatch) title = rewriteMatch[1].trim();
-    const subMatch = sec.match(/\*\*【科目】\*\*[^\n]*?([^\n（）()]+)/);
-    if (subMatch) subject = subMatch[1].trim();
-    const dataMatch = sec.match(/\*\*【爆款数据摘要】\*\*[^\n]*\n([\s\S]*?)(?=\n\*\*【改写标题】)/);
-    if (dataMatch) dataSummary = dataMatch[1].trim();
-    const contentMatch = sec.match(/\*\*【笔记正文】\*\*[^\n]*\n([\s\S]*?)(?=\n\*\*【标签】|$)/);
-    if (contentMatch) content = contentMatch[1].trim();
-    const tagMatch = sec.match(/\*\*【标签】\*\*[^\n]*\n([\s\S]*)/);
-    if (tagMatch) tags = tagMatch[1].match(/#[^\s#]+/g) || [];
+    const contentMatch = sec.match(/\*\*正文[：:]\*\*\s*\n([\s\S]*?)(?=\n\*\*标签|$)/);
+    const content = contentMatch ? contentMatch[1].trim() : '';
+    const tagMatch = sec.match(/\*\*标签[：:]\*\*\s*(.+)/);
+    const tags = tagMatch ? (tagMatch[1].match(/#[^\s#]+/g) || []) : [];
+    const subMatch = sec.match(/\*\*科目[：:]\*\*\s*([^\n]+)/);
+    const subject = subMatch ? subMatch[1].replace(/[（(].*/, '').trim() : '';
     if (title) {
       cards.push({ title, subject, dataSummary, content, tags });
     }
@@ -481,28 +481,25 @@ function parseXiaohongshu(text) {
 
 // 修复问题2: parseGongzhonghao 支持提取 #标签名 格式的标签
 function parseGongzhonghao(text) {
-  const sections = text.split(/^### /m).filter(s => s.trim());
+  text = text.replace(/^---[\s\S]*?---\n?/, '');
+  const sections = text.split(/^## /m).filter(s => s.trim());
   const cards = [];
   let idx = 0;
   for (const sec of sections) {
     idx++;
-    let title = '', subject = '', dataSummary = '', content = '';
-    const firstLine = sec.split('\n')[0].trim();
-    title = firstLine.replace(/^[\#\d\.\s]+/, '').trim();
-    const subMatch = sec.match(/\*\*【科目】\*\*[^\n]*\n([^\n]+)/);
-    if (subMatch) subject = subMatch[1].trim();
-    const dataMatch = sec.match(/\*\*【爆款数据摘要】\*\*[^\n]*\n([\s\S]*?)(?=\n\*\*【改写标题】)/);
-    if (dataMatch) dataSummary = dataMatch[1].trim();
-    const rewriteMatch = sec.match(/\*\*【改写标题】\*\*[^\n]*\n([^\n]+)/);
-    if (rewriteMatch) title = rewriteMatch[1].trim();
-    const contentMatch = sec.match(/\*\*【文章正文】\*\*[^\n]*\n([\s\S]*)/);
-    if (contentMatch) content = contentMatch[1].trim();
-    // 修复问题2: 提取 #标签名
-    const tagMatches = sec.match(/#([^\s#，,。！!！？\n]+)/g) || [];
-    const tags = tagMatches
-      .map(t => t.substring(1))
-      .filter(t => t.length >= 2 && !/^\d+$/.test(t))
-      .slice(0, 10);
+    const numMatch = sec.match(/^(\d+)\.\s+(.+?)$/m);
+    if (!numMatch) continue;
+    let title = numMatch[2].trim();
+    const dataMatch = sec.match(/\*\*(?:原文|原文章)爆点[：:]\*\*\s*([^\n]+)/);
+    const dataSummary = dataMatch ? dataMatch[1].trim() : '';
+    const rwMatch = sec.match(/\*\*改写标题[：:]\*\*\s*([^\n]+)/);
+    if (rwMatch) title = rwMatch[1].trim();
+    const contentMatch = sec.match(/\*\*(?:改写文章|文章正文)[：:]\*\*\s*\n([\s\S]*?)(?=\n---|\n## |$)/);
+    const content = contentMatch ? contentMatch[1].trim() : '';
+    const subMatch = sec.match(/\*\*科目[：:]\*\*\s*([^\n]+)/);
+    const subject = subMatch ? subMatch[1].replace(/[（(].*/, '').trim() : '';
+    const tagMatches = sec.match(/#([^\s#，,。！!？?\n]+)/g) || [];
+    const tags = tagMatches.map(t => t.substring(1)).filter(t => t.length >= 2 && !/^\d+$/.test(t)).slice(0, 10);
     if (title) {
       cards.push({ title, subject, dataSummary, content, tags, idx });
     }
