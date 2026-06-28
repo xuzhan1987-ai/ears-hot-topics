@@ -569,8 +569,8 @@ function parseXiaohongshu(text) {
     
     // 提取正文
     // 新格式: **小红书笔记**：
-**标题**：xxx
-正文
+    // **标题**：xxx
+    // 正文
     const noteTitleMatch = section.match(/\*\*小红书笔记[：:]\*\*\s*\n?\s*\*\*标题[：:]\*\*\s*(.+?)(?=\n|$)/s);
     if (noteTitleMatch && !title) {
       title = noteTitleMatch[1].trim();
@@ -666,8 +666,8 @@ function parseGongzhonghao(text) {
     
     // 提取正文
     // 新格式: **公众号文章**：
-# 文章标题
-正文
+    // # 文章标题
+    // 正文
     let contentMatch = section.match(/\*\*公众号文章[：:]\*\*\s*\n([\s\S]*)/);
     if (contentMatch) {
       content = contentMatch[1].trim();
